@@ -8,6 +8,7 @@ __all__ = [
     'form_k_diag',
     'form_sparse_v',
     'initialize_node_dof',
+    'pin_jointed',
     'rod_bee',
     'rod_ke',
     'update_node_dof',
@@ -132,6 +133,109 @@ def initialize_node_dof(node_ids, num_node_dof, fixed_node_ids, fixed_components
         node_id = fixed_node_ids[i]
         node_dof[node_ids.index(node_id), :] = fixed_components[fixed_node_ids.index(node_id), :]
     return node_dof
+
+
+def pin_jointed(ke, e, a, coord):
+    """
+    生成杆单元的刚度矩阵
+    :param ke: 刚度矩阵
+    :param e: 弹性模量E
+    :param a: 截面积A
+    :param coord: 单元的节点坐标
+    :return: ke
+    """
+    num_dim = np.size(coord, 1)
+    if num_dim == 1:
+        length = coord[1, 0] - coord[0, 0]
+        ke[0, 0] = 1.0
+        ke[0, 1] = -1.0
+        ke[1, 0] = -1.0
+        ke[1, 1] = 1.0
+    elif num_dim == 2:
+        x1 = coord[0, 0]
+        y1 = coord[0, 1]
+        x2 = coord[1, 0]
+        y2 = coord[1, 1]
+        length = np.sqrt((y2-y1)**2 + (x2-x1)**2)
+        cs = (x2-x1)/length
+        sn = (y2-y1)/length
+        ll = cs * cs
+        mm = sn * sn
+        lm = cs * sn
+        ke[0, 0] = ll
+        ke[2, 2] = ll
+        ke[0, 2] = -ll
+        ke[2, 0] = -ll
+        ke[1, 1] = mm
+        ke[3, 3] = mm
+        ke[1, 3] = -mm
+        ke[3, 1] = -mm
+        ke[0, 1] = lm
+        ke[1, 0] = lm
+        ke[2, 3] = lm
+        ke[3, 2] = lm
+        ke[0, 3] = -lm
+        ke[3, 0] = -lm
+        ke[1, 2] = -lm
+        ke[2, 1] = -lm
+    elif num_dim == 3:
+        x1 = coord[0, 0]
+        y1 = coord[0, 1]
+        z1 = coord[0, 2]
+        x2 = coord[1, 0]
+        y2 = coord[1, 1]
+        z2 = coord[1, 2]
+        length = np.sqrt((x2-x1)**2+(y2-y1)**2+(z2-z1)**2)
+        l = (x2 - x1) / length
+        m = (y2 - y1) / length
+        n = (z2 - z1) / length
+        ll = l * l
+        mm = m * m
+        nn = n * n
+        lm = l * m
+        mn = m * n
+        ln = l * n
+        ke[0, 0] = ll
+        ke[3, 3] = ll
+        ke[1, 1] = mm
+        ke[4, 4] = mm
+        ke[2, 2] = nn
+        ke[5, 5] = nn
+        ke[0, 1] = lm
+        ke[1, 0] = lm
+        ke[3, 4] = lm
+        ke[4, 3] = lm
+        ke[1, 2] = mn
+        ke[2, 1] = mn
+        ke[4, 5] = mn
+        ke[5, 4] = mn
+        ke[0, 2] = ln
+        ke[2, 0] = ln
+        ke[3, 5] = ln
+        ke[5, 3] = ln
+        ke[0, 3] = -ll
+        ke[3, 0] = -ll
+        ke[1, 4] = -mm
+        ke[4, 1] = -mm
+        ke[2, 5] = -nn
+        ke[5, 2] = -nn
+        ke[0, 4] = -lm
+        ke[4, 0] = -lm
+        ke[1, 3] = -lm
+        ke[3, 1] = -lm
+        ke[1, 5] = -mn
+        ke[5, 1] = -mn
+        ke[2, 4] = -mn
+        ke[4, 2] = -mn
+        ke[0, 5] = -ln
+        ke[5, 0] = -ln
+        ke[2, 3] = -ln
+        ke[3, 2] = -ln
+    else:
+        print('错误的维度信息')
+        return
+    ke = ke * e * a / length
+    return ke
 
 
 def rod_bee(bee, length):
