@@ -47,7 +47,7 @@ def bar(filename=None, plot=True):
     line = fr.readline()
     while line:
         line = line.strip().lower()
-        if line.startswith('#'):
+        if line.startswith('#') or line == '':
             pass
         elif line == '* material':
             # 材料种类数、材料分量数、材料号、材料属性
