@@ -36,7 +36,7 @@ def add_displacement(num_disp_node, num_node_dof, disp_node_ids, displacements,
         for i in range(num_disp_node):
             disp_dof[i, :] = node_dof[node_ids.index(disp_node_ids[i]), :]
             for j in range(num_node_dof):
-                if displacements[i, j] != 0.0:
+                if not np.isnan(displacements[i, j]):
                     kv[k_diag[disp_dof[i, j]-1]-1] += penalty
                     loads[disp_dof[i, j]] = kv[k_diag[disp_dof[i, j]-1]-1] * displacements[i, j]
     return kv, loads

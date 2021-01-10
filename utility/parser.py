@@ -88,5 +88,8 @@ def read_parameter(fr, para_type='float'):
         line = fr.readline().split()
         ids[i] = int(line[0])
         for j in range(column):
-            values[i, j] = line[j+1]
+            try:
+                values[i, j] = line[j+1]
+            except ValueError:
+                values[i, j] = np.nan
     return row, column, ids, values
