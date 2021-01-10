@@ -7,6 +7,7 @@ __all__ = [
     'add_force',
     'form_k_diag',
     'form_sparse_v',
+    'global_to_axial',
     'initialize_node_dof',
     'pin_jointed',
     'rod_bee',
@@ -115,6 +116,24 @@ def form_sparse_v(kv, ke, elem_dof, k_diag):
                         i_val = k_diag[elem_dof[i]-1] - elem_dof[i] + elem_dof[j]
                         kv[i_val-1] += ke[i, j]
     return kv
+
+
+def global_to_axial(global_action, coord):
+    """
+    二维和三维桁架结构中，将整体坐标系下的力分量转换为杆的轴向力
+    :param global_action: 整体坐标系下的力
+    :param coord: 节点坐标
+    :return: 轴向载荷axial
+    """
+    num_dim = np.size(coord, 1)
+    add = 0.0
+    for i in range(num_dim):
+        add += (coord[1, i] - coord[0, i]) ** 2
+    length = np.sqrt(add)
+    axial = 0.0
+    for i in range(num_dim):
+        axial += (coord[1, i] - coord[0, i]) / length * global_action[num_dim+i]
+    return axial
 
 
 def initialize_node_dof(node_ids, num_node_dof, fixed_node_ids, fixed_components):

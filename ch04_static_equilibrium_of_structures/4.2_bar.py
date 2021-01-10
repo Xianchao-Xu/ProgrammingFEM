@@ -9,7 +9,7 @@ import numpy as np  # noqa: E402
 from utility import (get_name, read_elem_prop_type, read_parameter, initialize_node_dof,
                      update_node_dof, get_elem_dof, form_k_diag, pin_jointed,
                      form_sparse_v, add_force, add_displacement, sparse_cho_fac,
-                     sparse_cho_bac, contour_plot)  # noqa: E402
+                     sparse_cho_bac, global_to_axial, contour_plot)  # noqa: E402
 
 
 def bar(filename=None, plot=True):
@@ -155,12 +155,12 @@ def bar(filename=None, plot=True):
     for i in range(num_node):
         fw_out.write('{:4d} '.format(node_ids[i]))
         for j in range(num_node_dof):
-            fw_out.write('{:16.6e} '.format(loads[node_dof[i, j]]))
+            fw_out.write('{:16.9e} '.format(loads[node_dof[i, j]]))
         for j in range(3):
             if j < num_node_dof:
-                fw_vtk.write('{:16.6e} '.format(loads[node_dof[i, j]]))
+                fw_vtk.write('{:16.9e} '.format(loads[node_dof[i, j]]))
             else:
-                fw_vtk.write('{:16.6e} '.format(0))
+                fw_vtk.write('{:16.9e} '.format(0))
         fw_vtk.write('\n')
         fw_out.write('\n')
     fw_out.write('单元    载荷\n')
@@ -175,8 +175,10 @@ def bar(filename=None, plot=True):
         action = np.dot(ke, elem_disp)
         fw_out.write('{:4d} '.format(elem_ids[i_elem]))
         for i in action:
-            fw_out.write('{:16.6e} '.format(i))
+            fw_out.write('{:16.9e} '.format(i))
         fw_out.write('\n')
+        axial = global_to_axial(action, coord)
+        fw_out.write('     轴向力：{:16.9e}\n'.format(axial))
 
     fw_vtk.close()
     fw_out.close()
