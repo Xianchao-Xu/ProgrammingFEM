@@ -5,6 +5,9 @@ import numpy as np
 __all__ = [
     'add_displacement',
     'add_force',
+    'beam_ge',
+    'beam_me',
+    'beam_ke',
     'form_k_diag',
     'form_sparse_v',
     'global_to_axial',
@@ -62,6 +65,90 @@ def add_force(num_equation, node_ids, num_node_dof, node_dof, num_loaded_nodes,
         for j in range(num_node_dof):
             loads[node_dof[node_ids.index(loaded_node_ids[i]), j]] = forces[i, j]
     return loads
+
+
+def beam_ge(ge, length):
+    """
+    组装梁单元的几何矩阵。
+    对梁进行屈曲分析（稳定性分析时），梁受到轴向力作用。
+    而梁单元无轴向自由度，方程的其中一项会形成一个只与单元长度相关的矩阵，即几何矩阵。
+    :param ge: 几何矩阵
+    :param length: 梁单元长度
+    :return: 梁单元的几何矩阵
+    """
+    ge[0, 0] = 1.2 / length
+    ge[0, 1] = 0.1
+    ge[1, 0] = 0.1
+    ge[0, 2] = -1.2 / length
+    ge[2, 0] = -1.2 / length
+    ge[0, 3] = 0.1
+    ge[3, 0] = 0.1
+    ge[1, 1] = 2.0 * length / 15.0
+    ge[1, 2] = -0.1
+    ge[2, 1] = -0.1
+    ge[1, 3] = -length / 30.0
+    ge[3, 1] = -length / 30.0
+    ge[2, 2] = 1.2 / length
+    ge[2, 3] = -0.1
+    ge[3, 2] = -0.1
+    ge[3, 3] = 2.0 * length / 15.0
+    return ge
+
+
+def beam_me(me, fs, length):
+    """
+    组装梁单元的质量矩阵
+    :param me: 质量矩阵
+    :param fs: 地基刚度或ρA
+    :param length: 单元长度
+    :return: 梁单元的质量矩阵
+    """
+    fac = (fs * length) / 420.0
+    me[0, 0] = 156.0 * fac
+    me[2, 2] = me[0, 0]
+    me[0, 1] = 22.0 * length * fac
+    me[1, 0] = me[0, 1]
+    me[2, 3] = -me[0, 1]
+    me[3, 2] = me[2, 3]
+    me[0, 2] = 54.0 * fac
+    me[2, 0] = me[0, 2]
+    me[0, 3] = -13.0 * length * fac
+    me[3, 0] = me[0, 3]
+    me[1, 2] = -me[0, 3]
+    me[2, 1] = me[1, 2]
+    me[1, 1] = 4.0 * (length ** 2) * fac
+    me[3, 3] = me[1, 1]
+    me[1, 3] = -3.0 * (length ** 2) * fac
+    me[3, 1] = me[1, 3]
+    return me
+
+
+def beam_ke(ke, e, i, length):
+    """
+    生成梁单元的刚度矩阵
+    :param ke: 刚度矩阵
+    :param e: 弹性模量
+    :param i: 惯性矩
+    :param length: 单元长度
+    :return: 梁单元的刚度矩阵
+    """
+    ke[0, 0] = 12.0 * e * i / (length ** 3)
+    ke[2, 2] = ke[0, 0]
+    ke[0, 2] = -ke[0, 0]
+    ke[2, 0] = -ke[0, 0]
+    ke[0, 1] = 6.0 * e * i / (length ** 2)
+    ke[1, 0] = ke[0, 1]
+    ke[0, 3] = ke[0, 1]
+    ke[3, 0] = ke[0, 1]
+    ke[1, 2] = -ke[0, 1]
+    ke[2, 1] = -ke[0, 1]
+    ke[2, 3] = -ke[0, 1]
+    ke[3, 2] = -ke[0, 1]
+    ke[1, 1] = 4.0 * e * i / length
+    ke[3, 3] = ke[1, 1]
+    ke[1, 3] = 2.0 * e * i / length
+    ke[3, 1] = ke[1, 3]
+    return ke
 
 
 def form_k_diag(k_diag, elem_dof):
