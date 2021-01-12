@@ -12,7 +12,8 @@ from utility import (get_name, read_parameter, read_parameter_1d, read_elem_prop
                      sparse_cho_fac, sparse_cho_bac, contour_plot)  # noqa: E402
 
 
-def bar1d(filename=None, plot=True):
+def bar1d(filename=None, plot=True, field_name='Displacement', component=-1,
+          shape_name='Displacement', factor=1):
     input_file, output_file, vtk_file = get_name(filename)
     if not os.path.exists(input_file):
         print('{}不存在！'.format(input_file))
@@ -172,9 +173,8 @@ def bar1d(filename=None, plot=True):
 
     # 显示结果
     if plot:
-        contour_plot(vtk_file)
+        contour_plot(vtk_file, field_name, component, shape_name, factor)
 
 
 if __name__ == '__main__':
-    bar1d(filename='4.1_test1', plot=True)
-    bar1d(filename='4.1_test2', plot=True)
+    bar1d()

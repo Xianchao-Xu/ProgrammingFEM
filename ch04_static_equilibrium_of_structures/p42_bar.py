@@ -12,7 +12,8 @@ from utility import (get_name, read_elem_prop_type, read_parameter, initialize_n
                      sparse_cho_bac, global_to_axial, contour_plot)  # noqa: E402
 
 
-def bar(filename=None, plot=True):
+def bar(filename=None, plot=True, field_name='Displacement', component=-1,
+        shape_name='Displacement', factor=1):
     input_file, output_file, vtk_file = get_name(filename)
     if not os.path.exists(input_file):
         print('{}不存在！'.format(input_file))
@@ -185,11 +186,8 @@ def bar(filename=None, plot=True):
 
     # *********************************** 显示结果 ************************************ #
     if plot:
-        contour_plot(vtk_file)
+        contour_plot(vtk_file, field_name, component, shape_name, factor)
 
 
 if __name__ == '__main__':
-    bar('4.2_test1', plot=True)
-    bar('4.2_test2', plot=True)
-    bar('4.2_test3', plot=False)
-    bar('4.2_test4', plot=False)
+    bar()
