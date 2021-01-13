@@ -172,7 +172,7 @@ def beam1d(filename=None, plot=False, field_name='Displacement', component=-1,
 
 
 if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description='1D bar element')
+    parser = argparse.ArgumentParser(description='1D beam element')
     parser.add_argument('--filename', action='store',
                         dest='filename', default='4.3_test2', type=str)
     parser.add_argument('--plot', '-p', action='store',
