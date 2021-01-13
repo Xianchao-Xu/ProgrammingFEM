@@ -1,5 +1,6 @@
 # coding: utf-8
 # author: xuxc
+import argparse
 import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
@@ -177,4 +178,24 @@ def bar1d(filename=None, plot=True, field_name='Displacement', component=-1,
 
 
 if __name__ == '__main__':
-    bar1d()
+    parser = argparse.ArgumentParser(description='1D bar element')
+    parser.add_argument('--filename', action='store',
+                        dest='filename', default='4.1_test1', type=str)
+    parser.add_argument('--plot', '-p', action='store',
+                        dest='plot', default=True, type=bool)
+    parser.add_argument('--field', action='store', dest='field',
+                        default='Displacement', type=str)
+    parser.add_argument('--component', action='store',
+                        dest='component', default=-1, type=int)
+    parser.add_argument('--shape_name', action='store', dest='shape_name',
+                        default='Displacement', type=str)
+    parser.add_argument('--factor', action='store', dest='factor',
+                        default=1, type=int)
+    given_args = parser.parse_args()
+    filename = given_args.filename
+    plot = given_args.plot
+    field = given_args.field
+    component = given_args.component
+    shape_name = given_args.shape_name
+    factor = given_args.factor
+    bar1d(filename, plot, field, component, shape_name, factor)
