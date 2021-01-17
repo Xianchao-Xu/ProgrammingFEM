@@ -13,6 +13,7 @@ __all__ = [
     'global_to_axial',
     'initialize_node_dof',
     'pin_jointed',
+    'rigid_jointed',
     'rod_bee',
     'rod_ke',
     'update_node_dof',
@@ -341,6 +342,209 @@ def pin_jointed(ke, e, a, coord):
         print('错误的维度信息')
         return
     ke = ke * e * a / length
+    return ke
+
+
+def rigid_jointed(ke, prop_ids, prop, gamma, elem_prop_type, i_elem, coord):
+    """
+    生成广义梁单元的刚度矩阵
+    :param ke: 刚度矩阵
+    :param prop_ids: 材料属性号
+    :param prop: 材料属性
+    :param gamma: 单元绕轴的转角
+    :param elem_prop_type: 单元的材料属性编号
+    :param i_elem: 单元号（减一）
+    :param coord: 单元的节点坐标
+    :return: 刚度矩阵ke
+    """
+    num_dim = np.size(coord, 1)
+    if num_dim == 1:
+        prop_e = prop[prop_ids.index(elem_prop_type[i_elem]), 0]
+        prop_i = prop[prop_ids.index(elem_prop_type[i_elem]), 1]
+        ei = prop_e * prop_i
+        length = coord[1, 0] - coord[0, 0]
+        ke[0, 0] = 12.0 * ei / (length ** 3)
+        ke[2, 2] = ke[0, 0]
+        ke[0, 2] = -ke[0, 0]
+        ke[2, 0] = -ke[0, 0]
+        ke[1, 1] = 4.0 * ei / length
+        ke[3, 3] = ke[1, 1]
+        ke[0, 1] = 6.0 * ei / (length * length)
+        ke[1, 0] = ke[0, 1]
+        ke[0, 3] = ke[0, 1]
+        ke[3, 0] = ke[0, 1]
+        ke[1, 2] = -ke[0, 1]
+        ke[2, 1] = -ke[0, 1]
+        ke[2, 3] = -ke[0, 1]
+        ke[3, 2] = -ke[0, 1]
+        ke[1, 3] = 2.0 * ei / length
+        ke[3, 1] = ke[1, 3]
+    elif num_dim == 2:
+        prop_e = prop[prop_ids.index(elem_prop_type[i_elem]), 0]
+        prop_a = prop[prop_ids.index(elem_prop_type[i_elem]), 1]
+        prop_i = prop[prop_ids.index(elem_prop_type[i_elem]), 2]
+        ea = prop_e * prop_a
+        ei = prop_e * prop_i
+        x1 = coord[0, 0]
+        y1 = coord[0, 1]
+        x2 = coord[1, 0]
+        y2 = coord[1, 1]
+        length = np.sqrt((y2 - y1)**2 + (x2 - x1)**2)
+        cos_alpha = (x2 - x1) / length
+        sin_alpha = (y2 - y1) / length
+        e1 = ea / length
+        e2 = 12.0 * ei / (length * length * length)
+        e3 = ei / length
+        e4 = 6.0 * ei / (length * length)
+        ke[0, 0] = cos_alpha * cos_alpha * e1 + sin_alpha * sin_alpha * e2
+        ke[3, 3] = ke[0, 0]
+        ke[0, 1] = sin_alpha * cos_alpha * (e1 - e2)
+        ke[1, 0] = ke[0, 1]
+        ke[3, 4] = ke[0, 1]
+        ke[4, 3] = ke[0, 1]
+        ke[0, 2] = -sin_alpha * e4
+        ke[2, 0] = ke[0, 2]
+        ke[5, 0] = ke[0, 2]
+        ke[0, 5] = ke[0, 2]
+        ke[2, 3] = sin_alpha * e4
+        ke[3, 2] = ke[2, 3]
+        ke[3, 5] = ke[2, 3]
+        ke[5, 3] = ke[2, 3]
+        ke[0, 3] = -ke[0, 0]
+        ke[3, 0] = ke[0, 3]
+        ke[0, 4] = sin_alpha * cos_alpha * (e2 - e1)
+        ke[4, 0] = ke[0, 4]
+        ke[1, 3] = ke[0, 4]
+        ke[3, 1] = ke[0, 4]
+        ke[1, 1] = sin_alpha * sin_alpha * e1 + cos_alpha * cos_alpha * e2
+        ke[4, 4] = ke[1, 1]
+        ke[4, 1] = -ke[1, 1]
+        ke[1, 4] = ke[4, 1]
+        ke[1, 2] = cos_alpha * e4
+        ke[2, 1] = ke[1, 2]
+        ke[1, 5] = ke[1, 2]
+        ke[5, 1] = ke[1, 2]
+        ke[2, 2] = 4.0 * e3
+        ke[5, 5] = ke[2, 2]
+        ke[2, 4] = -cos_alpha * e4
+        ke[4, 2] = ke[2, 4]
+        ke[4, 5] = ke[2, 4]
+        ke[5, 4] = ke[2, 4]
+        ke[2, 5] = 2.0 * e3
+        ke[5, 2] = ke[2, 5]
+    elif num_dim == 3:
+        prop_e = prop[prop_ids.index(elem_prop_type[i_elem]), 0]
+        prop_a = prop[prop_ids.index(elem_prop_type[i_elem]), 1]
+        iy = prop[prop_ids.index(elem_prop_type[i_elem]), 2]
+        iz = prop[prop_ids.index(elem_prop_type[i_elem]), 3]
+        prop_g = prop[prop_ids.index(elem_prop_type[i_elem]), 4]
+        prop_j = prop[prop_ids.index(elem_prop_type[i_elem]), 5]
+        ea = prop_e * prop_a
+        eiy = prop_e * iy
+        eiz = prop_e * iz
+        gj = prop_g * prop_j
+        x1 = coord[0, 0]
+        y1 = coord[0, 1]
+        z1 = coord[0, 2]
+        x2 = coord[1, 0]
+        y2 = coord[1, 1]
+        z2 = coord[1, 2]
+        x21 = x2 - x1
+        y21 = y2 - y1
+        z21 = z2 - z1
+        length = np.sqrt(x21 * x21 + y21 * y21 + z21 * z21)
+        ke = np.zeros(ke.shape, dtype=np.float)
+        t = np.zeros((12, 12), dtype=np.float)
+        a1 = ea / length
+        a2 = 12.0 * eiz / (length * length * length)
+        a3 = 12.0 * eiy / (length * length * length)
+        a4 = 6.0 * eiz / (length * length)
+        a5 = 6.0 * eiy / (length * length)
+        a6 = 4.0 * eiz / length
+        a7 = 4.0 * eiy / length
+        a8 = gj / length
+        ke[0, 0] = a1
+        ke[6, 6] = a1
+        ke[0, 6] = -a1
+        ke[6, 0] = -a1
+        ke[1, 1] = a2
+        ke[7, 7] = a2
+        ke[1, 7] = -a2
+        ke[7, 1] = -a2
+        ke[2, 2] = a3
+        ke[8, 8] = a3
+        ke[2, 8] = -a3
+        ke[8, 2] = -a3
+        ke[3, 3] = a8
+        ke[9, 9] = a8
+        ke[3, 9] = -a8
+        ke[9, 3] = -a8
+        ke[4, 4] = a7
+        ke[10, 10] = a7
+        ke[4, 10] = 0.5 * a7
+        ke[10, 4] = 0.5 * a7
+        ke[5, 5] = a6
+        ke[11, 11] = a6
+        ke[5, 11] = 0.5 * a6
+        ke[11, 5] = 0.5 * a6
+        ke[1, 5] = a4
+        ke[5, 1] = a4
+        ke[1, 11] = a4
+        ke[11, 1] = a4
+        ke[5, 7] = -a4
+        ke[7, 5] = -a4
+        ke[7, 11] = -a4
+        ke[11, 7] = -a4
+        ke[4, 8] = a5
+        ke[8, 4] = a5
+        ke[8, 10] = a5
+        ke[10, 8] = a5
+        ke[2, 4] = -a5
+        ke[4, 2] = -a5
+        ke[2, 10] = -a5
+        ke[10, 2] = -a5
+        #
+        # 组装转换矩阵
+        # 转换矩阵的各个元素为局部坐标系各轴与整体坐标系各轴的余弦
+        #
+        # 局部坐标系上x轴上的向量叉乘整体坐标系的y轴上的向量，可得局部坐标系z轴上的向量
+        # 局部坐标系z轴上的向量叉乘局部坐标系x轴上的向量，可得局部坐标系y轴上的向量
+        # 最后再绕局部坐标系的x轴旋转gamma度，得到最后的局部坐标系
+        # （由罗德里格旋转公式可得绕局部坐标系x轴旋转后的局部坐标系）
+        # 局部坐标系的x方向单位向量为(x21/ell, y21/ell, z21/ell)
+        #
+        pi = np.pi
+        gam_rad = gamma[i_elem] * pi / 180.
+        cg = np.cos(gam_rad)
+        sg = np.sin(gam_rad)
+        den = length * np.sqrt(x21 * x21 + z21 * z21)
+        r0 = np.zeros((3, 3), dtype=np.float)
+        if den != 0.0:  # 单元不垂直于xz平面
+            r0[0, 0] = x21 / length  # cos(x, X)
+            r0[0, 1] = y21 / length  # cos(x, Y)
+            r0[0, 2] = z21 / length  # cos(x, Z)
+            r0[1, 0] = (-x21 * y21 * cg - length * z21 * sg) / den
+            r0[1, 1] = den * cg / (length * length)
+            r0[1, 2] = (-y21 * z21 * cg + length * x21 * sg) / den
+            r0[2, 0] = (x21 * y21 * sg - length * z21 * cg) / den
+            r0[2, 1] = -den * sg / (length * length)
+            r0[2, 2] = (y21 * z21 * sg + length * x21 * cg) / den
+        else:  # den为0说明单元垂直于xz平面
+            r0[0, 0] = 0.0
+            r0[0, 2] = 0.0
+            r0[1, 1] = 0.0
+            r0[2, 1] = 0.0
+            r0[0, 1] = 1.0
+            r0[1, 0] = -cg
+            r0[2, 2] = cg
+            r0[1, 2] = sg
+            r0[2, 0] = sg
+        for i in range(3):
+            for j in range(3):
+                x = r0[i, j]
+                for k in range(0, 10, 3):
+                    t[i + k, j + k] = x
+        ke = np.dot(np.dot(np.transpose(t), ke), t)
     return ke
 
 

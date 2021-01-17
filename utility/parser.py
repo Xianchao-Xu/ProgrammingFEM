@@ -4,6 +4,7 @@ import numpy as np
 
 __all__ = [
     'get_name',
+    'read_beam_direction',
     'read_elem_prop_type',
     'read_parameter_1d',
     'read_parameter',
@@ -27,6 +28,14 @@ def get_name(filename=None):
     output_file = 'output_files/{}.out'.format(filename)
     vtk_file = 'vtk_files/{}.vtk'.format(filename)
     return input_file, output_file, vtk_file
+
+
+def read_beam_direction(num_dim, num_elem, fr):
+    direction = np.zeros(num_elem, dtype=np.float)
+    if num_dim == 3:
+        for i in range(num_elem):
+            direction[i] = fr.readline()
+    return direction
 
 
 def read_elem_prop_type(num_elem, num_prop_types, prop_ids, fr):
