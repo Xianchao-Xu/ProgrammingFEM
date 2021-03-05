@@ -6,6 +6,7 @@ __all__ = [
     'get_name',
     'read_beam_direction',
     'read_elem_prop_type',
+    'read_load_increments',
     'read_parameter_1d',
     'read_parameter',
 ]
@@ -14,6 +15,7 @@ __all__ = [
 def get_name(filename=None):
     """
     生成输入文件名和输出文件名
+    :param filename: 参数文件的文件名，可以不带后缀，需放置于input_files文件夹下
     :return: inp文件名、out文件名和vtk文件名
     """
     import sys
@@ -31,11 +33,28 @@ def get_name(filename=None):
 
 
 def read_beam_direction(num_dim, num_elem, fr):
+    """
+    读取梁单元的转动角度
+    :param num_dim: 问题维数，三维问题才需要梁单元方向
+    :param num_elem: 单元数
+    :param fr: 输入文件句柄
+    :return: 每个梁单元的转动角度
+    """
     direction = np.zeros(num_elem, dtype=np.float)
     if num_dim == 3:
         for i in range(num_elem):
             direction[i] = fr.readline()
     return direction
+
+
+def read_load_increments(fr):
+    """
+    读取并返回每一步的载荷增量
+    :param fr: 输入文件句柄
+    :return: increments，每一步的载荷增量
+    """
+    increments = np.array([i for i in fr.readline().split()], dtype=np.float)
+    return increments
 
 
 def read_elem_prop_type(num_elem, num_prop_types, prop_ids, fr):
