@@ -5,8 +5,10 @@ import numpy as np
 __all__ = [
     'get_name',
     'read_beam_direction',
+    'read_element',
     'read_elem_prop_type',
     'read_load_increments',
+    'read_mesh',
     'read_parameter_1d',
     'read_parameter',
 ]
@@ -47,14 +49,30 @@ def read_beam_direction(num_dim, num_elem, fr):
     return direction
 
 
-def read_load_increments(fr):
+def read_element(fr):
     """
-    读取并返回每一步的载荷增量
+    读取单元类型和单元连接关系
     :param fr: 输入文件句柄
-    :return: increments，每一步的载荷增量
+    :return: 单元类型elem_type、单元数num_elem、单元编号elem_ids、
+             单元节点数num_node_on_elem、积分点数num_integral_points、
+             单元连接关系elem_connections
     """
-    increments = np.array([i for i in fr.readline().split()], dtype=np.float)
-    return increments
+    line = fr.readline().strip().split()
+    elem_type = line[0]
+    num_node_on_elem = 4
+    if elem_type == 'quad4':
+        num_node_on_elem = 4
+    num_elem = int(line[1])
+    num_integral_points = int(line[2])
+    elem_ids = list()
+    elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=np.int)
+    for i in range(num_elem):
+        line = fr.readline().strip().split()
+        elem_ids.append(int(line[0]))
+        for j in range(num_node_on_elem):
+            elem_connections[i, j] = line[j+1]
+    return (elem_type, num_elem, elem_ids, num_node_on_elem,
+            num_integral_points, elem_connections)
 
 
 def read_elem_prop_type(num_elem, num_prop_types, prop_ids, fr):
@@ -73,6 +91,32 @@ def read_elem_prop_type(num_elem, num_prop_types, prop_ids, fr):
         for i in range(num_elem):
             elem_prop_type[i] = int(fr.readline())
     return elem_prop_type
+
+
+def read_load_increments(fr):
+    """
+    读取并返回每一步的载荷增量
+    :param fr: 输入文件句柄
+    :return: increments，每一步的载荷增量
+    """
+    increments = np.array([i for i in fr.readline().split()], dtype=np.float)
+    return increments
+
+
+def read_mesh(fr):
+    """
+    读取单元相关数据
+    :param fr: 输入文件句柄
+    :return: 单元类型elem_type，积分点数，几个方向的坐标
+    """
+    elem_type = fr.readline().strip().lower()
+    num_integral_points = int(fr.readline())
+    x_coord = np.array(fr.readline().split(), dtype=np.float)
+    y_coord = np.array(fr.readline().split(), dtype=np.float)
+    z_coord = None
+    if 'hexa' in elem_type:
+        z_coord = np.array(fr.readline().split(), dtype=np.float)
+    return elem_type, num_integral_points, x_coord, y_coord, z_coord
 
 
 def read_parameter_1d(fr, para_type='float'):

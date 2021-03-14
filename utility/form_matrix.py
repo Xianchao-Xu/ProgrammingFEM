@@ -9,7 +9,9 @@ __all__ = [
     'beam_me',
     'beam_ke',
     'form_k_diag',
+    'form_plate',
     'form_sparse_v',
+    'gauss_sample',
     'global_to_axial',
     'hinge_reaction',
     'initialize_node_dof',
@@ -24,7 +26,8 @@ __all__ = [
 def add_displacement(num_disp_node, num_node_dof, disp_node_ids, displacements,
                      node_ids, kv, k_diag, node_dof, loads, penalty):
     """
-    使用置大数法处理位移约束，根据受位移约束的自由度以及对应的刚度处诚意大数
+    使用置大数法处理位移约束
+    在受位移约束的自由度以及对应的刚度处乘以大数
     :param num_disp_node:  受位移约束的节点数
     :param num_node_dof: 单元的自由度数
     :param disp_node_ids: 受约束的节点编号
@@ -183,6 +186,111 @@ def form_k_diag(k_diag, elem_dof):
     return k_diag
 
 
+def form_plate(d2x, d2y, d2xy, gauss_points, x_size, y_size, i):
+    """
+    生成矩形平面弯曲薄板单元形函数的二阶偏导项d2x, d2y, d2xy
+
+    （平面弯曲板单元的形函数公式见《有限元方法编程（第五版）》36~38页）
+    高斯积分的积分域是[-1, 1]，而矩形边长分别为a和b，
+    书中公式推导时，矩形单元x、y方向的积分域分别为[0, a]和[0, b]，
+    所以：x = 0.5a(ξ+1), y = 0.5b(η+1)
+
+    :param d2x: 形函数对ξ的二阶偏导
+    :param d2y: 形函数对η的二阶偏导
+    :param d2xy: 形函数对ξ、η的混合偏导
+    :param gauss_points: 等参元内全部高斯积分点的局部坐标
+    :param x_size: 当前单元的x方向边长
+    :param y_size: 当前单元的y方向边长
+    :param i: 积分点索引号
+    :return: d2x, d2y, d2xy
+    """
+    xi = gauss_points[i, 0]  # ξ
+    eta = gauss_points[i, 1]  # η
+    xi_plus1 = xi + 1.0  # ξ+1
+    xi_plus1_2 = xi_plus1 * xi_plus1  # (ξ+1)^2
+    xi_plus1_3 = xi_plus1_2 * xi_plus1  # (ξ+1)^3
+    eta_plus1 = eta + 1.0  # η+1
+    eta_plus1_2 = eta_plus1 * eta_plus1  # (η+1)^2
+    eta_plus1_3 = eta_plus1_2 * eta_plus1  # (η+1)^3
+
+    p1 = 1.0 - 0.75 * xi_plus1_2 + 0.25 * xi_plus1_3
+    q1 = 1.0 - 0.75 * eta_plus1_2 + 0.25 * eta_plus1_3
+    p2 = 0.5 * x_size * xi_plus1 * (1.0 - xi_plus1 + 0.25 * xi_plus1_2)
+    q2 = 0.5 * y_size * eta_plus1 * (1.0 - eta_plus1 + 0.25 * eta_plus1_2)
+    p3 = 0.25 * xi_plus1_2 * (3.0 - xi_plus1)
+    q3 = 0.25 * eta_plus1_2 * (3.0 - eta_plus1)
+    p4 = 0.25 * x_size * xi_plus1_2 * (0.5 * xi_plus1 - 1.0)
+    q4 = 0.25 * y_size * eta_plus1_2 * (0.5 * eta_plus1 - 1.0)
+
+    dp1 = 1.5 * xi_plus1 * (0.5 * xi_plus1 - 1.0)  # p1对ξ的一阶偏导
+    dq1 = 1.5 * eta_plus1 * (0.5 * eta_plus1 - 1.0)  # q1对η的一阶偏导
+    dp2 = x_size * (0.5 - xi_plus1 + 0.375 * xi_plus1_2)  # p2对ξ的一阶偏导
+    dq2 = y_size * (0.5 - eta_plus1 + 0.375 * eta_plus1_2)  # q2对η的一阶偏导
+    dp3 = 1.5 * xi_plus1 * (1.0 - 0.5 * xi_plus1)  # p3对ξ的一阶偏导
+    dq3 = 1.5 * eta_plus1 * (1.0 - 0.5 * eta_plus1)  # q3对η的一阶偏导
+    dp4 = 0.5 * x_size * xi_plus1 * (0.75 * xi_plus1 - 1.0)  # p4对ξ的一阶偏导
+    dq4 = 0.5 * y_size * eta_plus1 * (0.75 * eta_plus1 - 1.0)  # q4对η的一阶偏导
+
+    d2p1 = 1.5 * xi  # p1对ξ的二阶偏导
+    d2q1 = 1.5 * eta  # q1对η的二阶偏导
+    d2p2 = 0.25 * x_size * (3.0 * xi - 1.0)  # p2对ξ的二阶偏导
+    d2q2 = 0.25 * y_size * (3.0 * eta - 1.0)  # q2对η的二阶偏导
+    d2p3 = -1.5 * xi  # p3对ξ的二阶偏导
+    d2q3 = -1.5 * eta  # q3对η的二阶偏导
+    d2p4 = 0.25 * x_size * (3.0 * xi + 1.0)  # p4对ξ的二阶偏导
+    d2q4 = 0.25 * y_size * (3.0 * eta + 1.0)  # q4对η的二阶偏导
+
+    d2x[0] = d2p1 * q1  # 形函数N1对ξ的二阶偏导
+    d2x[1] = d2p2 * q1  # 形函数N2对ξ的二阶偏导
+    d2x[2] = d2p1 * q2  # ……
+    d2x[3] = d2p2 * q2
+    d2x[4] = d2p1 * q3
+    d2x[5] = d2p2 * q3
+    d2x[6] = d2p1 * q4
+    d2x[7] = d2p2 * q4
+    d2x[8] = d2p3 * q3
+    d2x[9] = d2p4 * q3
+    d2x[10] = d2p3 * q4
+    d2x[11] = d2p4 * q4
+    d2x[12] = d2p3 * q1
+    d2x[13] = d2p4 * q1
+    d2x[14] = d2p3 * q2
+    d2x[15] = d2p4 * q2
+    d2y[0] = p1 * d2q1  # 形函数N1对η的二阶偏导
+    d2y[1] = p2 * d2q1  # 形函数N2对η的二阶偏导
+    d2y[2] = p1 * d2q2  # ……
+    d2y[3] = p2 * d2q2
+    d2y[4] = p1 * d2q3
+    d2y[5] = p2 * d2q3
+    d2y[6] = p1 * d2q4
+    d2y[7] = p2 * d2q4
+    d2y[8] = p3 * d2q3
+    d2y[9] = p4 * d2q3
+    d2y[10] = p3 * d2q4
+    d2y[11] = p4 * d2q4
+    d2y[12] = p3 * d2q1
+    d2y[13] = p4 * d2q1
+    d2y[14] = p3 * d2q2
+    d2y[15] = p4 * d2q2
+    d2xy[0] = dp1 * dq1  # 形函数N1对ξ和η的混合二阶偏导
+    d2xy[1] = dp2 * dq1  # 形函数N2对ξ和η的混合二阶偏导
+    d2xy[2] = dp1 * dq2  # ……
+    d2xy[3] = dp2 * dq2
+    d2xy[4] = dp1 * dq3
+    d2xy[5] = dp2 * dq3
+    d2xy[6] = dp1 * dq4
+    d2xy[7] = dp2 * dq4
+    d2xy[8] = dp3 * dq3
+    d2xy[9] = dp4 * dq3
+    d2xy[10] = dp3 * dq4
+    d2xy[11] = dp4 * dq4
+    d2xy[12] = dp3 * dq1
+    d2xy[13] = dp4 * dq1
+    d2xy[14] = dp3 * dq2
+    d2xy[15] = dp4 * dq2
+    return d2x, d2y, d2xy
+
+
 def form_sparse_v(kv, ke, elem_dof, k_diag):
     """
     组装整体刚度矩阵，以一维变带宽方式存储。
@@ -205,6 +313,76 @@ def form_sparse_v(kv, ke, elem_dof, k_diag):
                         i_val = k_diag[elem_dof[i]-1] - elem_dof[i] + elem_dof[j]
                         kv[i_val-1] += ke[i, j]
     return kv
+
+
+def gauss_sample(element, gauss_points, weights):
+    """
+    生成单元局部坐标系下的高斯积分点和权系数
+    :param element: 单元类型
+    :param gauss_points: 局部坐标系下的高斯积分点
+    :param weights: 高斯积分点的权系数
+    :return: points, weights
+    """
+    num_integral_points = np.size(gauss_points, 0)
+    if 'quad' in element:
+        if num_integral_points == 1:
+            gauss_points[0, 0] = 0.0
+            gauss_points[0, 1] = 0.0
+            weights[0] = 4.0
+        elif num_integral_points == 4:
+            root3 = 1.0 / np.sqrt(3)
+            gauss_points[0, 0] = -root3
+            gauss_points[0, 1] = root3
+            gauss_points[1, 0] = root3
+            gauss_points[1, 1] = root3
+            gauss_points[2, 0] = -root3
+            gauss_points[2, 1] = -root3
+            gauss_points[3, 0] = root3
+            gauss_points[3, 1] = -root3
+            weights[:] = 1.0
+        elif num_integral_points == 9:
+            root06 = np.sqrt(0.6)
+            gauss_points[0:7:3, 0] = -root06
+            gauss_points[1:8:3, 0] = 0.0
+            gauss_points[2:9:3, 0] = root06
+            gauss_points[0:3, 1] = root06
+            gauss_points[3:6, 1] = 0.0
+            gauss_points[6:9, 1] = -root06
+            weights[0] = 25/81
+            weights[1] = 40/81
+            weights[2] = 25/81
+            weights[3] = 40/81
+            weights[4] = 64/81
+            weights[5] = 40/81
+            weights[6] = 25/81
+            weights[7] = 40/81
+            weights[8] = 25/81
+        elif num_integral_points == 16:
+            gauss_points[0:13:4, 0] = -0.861136311594053
+            gauss_points[1:14:4, 0] = -0.339981043584856
+            gauss_points[2:15:4, 0] = 0.339981043584856
+            gauss_points[3:16:4, 0] = 0.861136311594053
+            gauss_points[0:4, 1] = 0.861136311594053
+            gauss_points[4:8, 1] = 0.339981043584856
+            gauss_points[8:12, 1] = -0.339981043584856
+            gauss_points[12:16, 1] = -0.861136311594053
+            weights[0] = 0.121002993285602
+            weights[3] = weights[0]
+            weights[12] = weights[0]
+            weights[15] = weights[0]
+            weights[1] = 0.226851851851852
+            weights[2] = weights[1]
+            weights[4] = weights[1]
+            weights[7] = weights[1]
+            weights[8] = weights[1]
+            weights[11] = weights[1]
+            weights[13] = weights[1]
+            weights[14] = weights[1]
+            weights[5] = 0.425293303010694
+            weights[6] = weights[5]
+            weights[9] = weights[5]
+            weights[10] = weights[5]
+    return gauss_points, weights
 
 
 def global_to_axial(global_action, coord):
