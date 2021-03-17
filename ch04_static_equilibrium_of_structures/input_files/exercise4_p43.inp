@@ -1,0 +1,23 @@
+* material
+1  2
+1  4000.  1.
+
+* length
+2
+1.0
+1.0
+
+* constraint
+2  2
+1  0  0
+3  0  1
+
+* force
+2  2
+2  -300.  -50.
+3  -300.   50.
+
+* displacement
+2  2
+2  -0.1  free
+3  free  0.1

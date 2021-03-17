@@ -1,0 +1,18 @@
+* material
+1  2
+1  1.e4  1.e-4
+
+* length
+1
+1.0
+
+* constraint
+1  2
+1  0  0
+
+* force
+1  2
+2  1.  0.
+
+* displacement
+0  2

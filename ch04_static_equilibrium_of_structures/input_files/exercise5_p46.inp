@@ -1,0 +1,18 @@
+* material
+1  2
+1  1.0e4  1.0e-4
+
+* length
+1
+1.0
+
+* constraint
+2  2
+1  0  0
+2  1  0
+
+* max_iter
+100
+
+* tolerance
+1.0e-6
