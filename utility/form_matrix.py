@@ -8,6 +8,8 @@ __all__ = [
     'beam_ge',
     'beam_me',
     'beam_ke',
+    'bee_mat',
+    'dee_mat',
     'form_k_diag',
     'form_plate',
     'form_sparse_v',
@@ -19,6 +21,8 @@ __all__ = [
     'rigid_jointed',
     'rod_bee',
     'rod_ke',
+    'shape_der',
+    'shape_fun',
     'update_node_dof',
 ]
 
@@ -154,6 +158,88 @@ def beam_ke(ke, e, i, length):
     ke[1, 3] = 2.0 * e * i / length
     ke[3, 1] = ke[1, 3]
     return ke
+
+
+def bee_mat(bee, derivative):
+    """
+    生成应变矩阵B
+    :param bee: B矩阵
+    :param derivative: 形函数的偏导数
+    :return: B矩阵
+    """
+    ih = np.size(bee, 0)  # 应力分量数
+    num_node_on_elem = np.size(derivative, 1)
+    if ih == 3 or ih == 4:  # 轴对称问题的B矩阵第四行在函数外额外处理
+        for m in range(num_node_on_elem):
+            b = 2 * m
+            c = b + 1
+            x = derivative[0, m]  # 形函数对x的偏导
+            y = derivative[1, m]  # 形函数对y的偏导
+            bee[0, b] = x
+            bee[2, c] = x
+            bee[1, c] = y
+            bee[2, b] = y
+    else:
+        print('应力分量数错误')
+    return bee
+
+
+def dee_mat(dee, e, v, plane=None):
+    """
+    生成弹性矩阵D
+    :param dee: 弹性矩阵D
+    :param e: 弹性模量E
+    :param v: 泊松比v
+    :param plane: 平面问题类型（平面应力、平面应变、轴对称）
+    :return: 弹性矩阵D
+    """
+    num_stress = np.size(dee, 0)  # 应力分量数
+    v1 = 1.0 - v
+    c = e / ((1.0 + v) * (1.0 - 2.0 * v))
+    if num_stress == 3:
+        if plane == 'plane_stress':  # 平面应力
+            d0 = e / (1 - v * v)
+            dee[0, 0] = d0
+            dee[1, 1] = d0
+            dee[0, 1] = d0 * v
+            dee[1, 0] = d0 * v
+            dee[2, 2] = 0.5 * e / (1.0 + v)
+        elif plane == 'plane_strain':  # 平面应变
+            dee[0, 0] = v1 * c
+            dee[1, 1] = v1 * c
+            dee[0, 1] = v * c
+            dee[1, 0] = v * c
+            dee[2, 2] = 0.5 * c * (1.0 - 2.0 * v)
+        else:
+            print('平面问题类型错误：{}'.format(plane))
+    elif num_stress == 4:  # 轴对称问题
+        dee[0, 0] = v1 * c
+        dee[1, 1] = v1 * c
+        dee[3, 3] = v1 * c
+        dee[2, 2] = 0.5 * c * (1.0 - 2.0 * v)
+        dee[0, 1] = v * c
+        dee[1, 0] = v * c
+        dee[0, 3] = v * c
+        dee[3, 0] = v * c
+        dee[1, 3] = v * c
+        dee[3, 1] = v * c
+    elif num_stress == 6:  # 三维
+        v2 = v / (1.0 - v)
+        vv = (1.0 - 2.0 * v) / (1.0 - v) * 0.5
+        for i in range(3):
+            dee[i, i] = 1.0
+        for i in range(3, 6):
+            dee[i, i] = vv
+        dee[0, 1] = v2
+        dee[1, 0] = v2
+        dee[0, 2] = v2
+        dee[2, 0] = v2
+        dee[1, 2] = v2
+        dee[2, 1] = v2
+        dee = dee * e / (2.0 * (1.0 + v) * vv)
+    else:
+        print('应力分量数错误：{}'.format(num_stress))
+    return dee
 
 
 def form_k_diag(k_diag, elem_dof):
@@ -324,7 +410,145 @@ def gauss_sample(element, gauss_points, weights):
     :return: points, weights
     """
     num_integral_points = np.size(gauss_points, 0)
-    if 'quad' in element:
+    if 'line' in element:
+        if num_integral_points == 1:
+            gauss_points[0, 0] = 0.0
+            weights[0] = 2.0
+        elif num_integral_points == 2:
+            gauss_points[0, 0] = -1 / np.sqrt(3)
+            gauss_points[1, 0] = 1 / np.sqrt(3)
+            weights[0] = 1.0
+            weights[1] = 1.0
+        elif num_integral_points == 3:
+            gauss_points[0, 0] = -0.774596669241484  # np.sqrt(0.6)
+            gauss_points[1, 0] = 0.000000000000000
+            gauss_points[2, 0] = 0.774596669241484
+            weights[0] = 0.555555555555556
+            weights[1] = 0.888888888888889
+            weights[2] = 0.555555555555556
+        else:
+            print('线单元的积分点数错误：{}'.format(num_integral_points))
+            return
+    elif 'tria' in element:
+        if num_integral_points == 1:
+            gauss_points[0, 0] = 1/3
+            gauss_points[0, 1] = 1/3
+            weights[0] = 0.5
+        elif num_integral_points == 3:
+            gauss_points[0, 0] = 0.5
+            gauss_points[0, 1] = 0.5
+            gauss_points[1, 0] = 0.5
+            gauss_points[1, 1] = 0.0
+            gauss_points[2, 0] = 0.0
+            gauss_points[2, 1] = 0.5
+            weights[0:3] = 1 / 6
+        elif num_integral_points == 6:
+            gauss_points[0, 0] = 0.816847572980459
+            gauss_points[0, 1] = 0.091576213509771
+            gauss_points[1, 0] = 0.091576213509771
+            gauss_points[1, 1] = 0.816847572980459
+            gauss_points[2, 0] = 0.091576213509771
+            gauss_points[2, 1] = 0.091576213509771
+            gauss_points[3, 0] = 0.108103018168070
+            gauss_points[3, 1] = 0.445948490915965
+            gauss_points[4, 0] = 0.445948490915965
+            gauss_points[4, 1] = 0.108103018168070
+            gauss_points[5, 0] = 0.445948490915965
+            gauss_points[5, 1] = 0.445948490915965
+            weights[0: 3] = 0.109951743655322
+            weights[3: 6] = 0.223381589678011
+            weights = 0.5 * weights
+        elif num_integral_points == 7:
+            gauss_points[0, 0] = 0.333333333333333
+            gauss_points[0, 1] = 0.333333333333333
+            gauss_points[1, 0] = 0.797426985353087
+            gauss_points[1, 1] = 0.101286507323456
+            gauss_points[2, 1] = 0.101286507323456
+            gauss_points[2, 1] = 0.797426985353087
+            gauss_points[3, 0] = 0.101286507323456
+            gauss_points[3, 1] = 0.101286507323456
+            gauss_points[4, 0] = 0.470142064105115
+            gauss_points[4, 1] = 0.059715871789770
+            gauss_points[5, 0] = 0.059715871789770
+            gauss_points[5, 1] = 0.470142064105115
+            gauss_points[6, 0] = 0.470142064105115
+            gauss_points[6, 1] = 0.470142064105115
+            weights[0] = 0.225000000000000
+            weights[1: 4] = 0.125939180544827
+            weights[4: 7] = 0.132394152788506
+            weights = 0.5 * weights
+        elif num_integral_points == 12:
+            gauss_points[0, 0] = 0.873821971016996
+            gauss_points[0, 1] = 0.063089014491502
+            gauss_points[1, 0] = 0.063089014491502
+            gauss_points[1, 1] = 0.873821971016996
+            gauss_points[2, 0] = 0.063089014491502
+            gauss_points[2, 1] = 0.063089014491502
+            gauss_points[3, 0] = 0.501426509658179
+            gauss_points[3, 1] = 0.249286745170910
+            gauss_points[4, 0] = 0.249286745170910
+            gauss_points[4, 1] = 0.501426509658179
+            gauss_points[5, 0] = 0.249286745170910
+            gauss_points[5, 1] = 0.249286745170910
+            gauss_points[6, 0] = 0.053145049844817
+            gauss_points[6, 1] = 0.310352451033784
+            gauss_points[7, 0] = 0.310352451033784
+            gauss_points[7, 1] = 0.053145049844817
+            gauss_points[8, 0] = 0.053145049844817
+            gauss_points[8, 1] = 0.636502499121398
+            gauss_points[9, 0] = 0.310352451033784
+            gauss_points[9, 1] = 0.636502499121398
+            gauss_points[10, 0] = 0.636502499121398
+            gauss_points[10, 1] = 0.053145049844817
+            gauss_points[11, 0] = 0.636502499121398
+            gauss_points[11, 1] = 0.310352451033784
+            weights[0: 3] = 0.050844906370207
+            weights[3: 6] = 0.116786275726379
+            weights[6: 12] = 0.082851075618374
+            weights = 0.5 * weights
+        elif num_integral_points == 16:
+            gauss_points[0, 0] = 0.333333333333333
+            gauss_points[0, 1] = 0.333333333333333
+            gauss_points[1, 0] = 0.658861384496478
+            gauss_points[1, 1] = 0.170569307751761
+            gauss_points[2, 0] = 0.170569307751761
+            gauss_points[2, 1] = 0.658861384496478
+            gauss_points[3, 0] = 0.170569307751761
+            gauss_points[3, 1] = 0.170569307751761
+            gauss_points[4, 0] = 0.898905543365938
+            gauss_points[4, 1] = 0.050547228317031
+            gauss_points[5, 0] = 0.050547228317031
+            gauss_points[5, 1] = 0.898905543365938
+            gauss_points[6, 0] = 0.050547228317031
+            gauss_points[6, 1] = 0.050547228317031
+            gauss_points[7, 0] = 0.081414823414554
+            gauss_points[7, 1] = 0.459292588292723
+            gauss_points[8, 0] = 0.459292588292723
+            gauss_points[8, 1] = 0.081414823414554
+            gauss_points[9, 0] = 0.459292588292723
+            gauss_points[9, 1] = 0.459292588292723
+            gauss_points[10, 0] = 0.008394777409958
+            gauss_points[10, 1] = 0.263112829634638
+            gauss_points[11, 0] = 0.008394777409958
+            gauss_points[11, 1] = 0.728492392955404
+            gauss_points[12, 0] = 0.263112829634638
+            gauss_points[12, 1] = 0.008394777409958
+            gauss_points[13, 0] = 0.263112829634638
+            gauss_points[13, 1] = 0.728492392955404
+            gauss_points[14, 0] = 0.728492392955404
+            gauss_points[14, 1] = 0.008394777409958
+            gauss_points[15, 0] = 0.728492392955404
+            gauss_points[15, 1] = 0.263112829634638
+            weights[0] = 0.144315607677787
+            weights[1: 4] = 0.103217370534718
+            weights[4: 7] = 0.032458497623198
+            weights[7: 10] = 0.095091634267284
+            weights[10: 16] = 0.027230314174435
+            weights = 0.5 * weights
+        else:
+            print('三角形单元的积分点数量错误：{}'.format(num_integral_points))
+            return
+    elif 'quad' in element:
         if num_integral_points == 1:
             gauss_points[0, 0] = 0.0
             gauss_points[0, 1] = 0.0
@@ -382,6 +606,47 @@ def gauss_sample(element, gauss_points, weights):
             weights[6] = weights[5]
             weights[9] = weights[5]
             weights[10] = weights[5]
+        elif num_integral_points == 25:
+            gauss_points[0: 21: 5, 0] = 0.906179845938664
+            gauss_points[1: 22: 5, 0] = 0.538469310105683
+            gauss_points[2: 23: 5, 0] = 0.0
+            gauss_points[3: 24: 5, 0] = -0.538469310105683
+            gauss_points[4: 25: 5, 0] = -0.906179845938664
+            gauss_points[0: 5, 1] = 0.906179845938664
+            gauss_points[5: 10, 1] = 0.538469310105683
+            gauss_points[10: 15, 1] = 0.0
+            gauss_points[15: 20, 1] = -0.538469310105683
+            gauss_points[20: 25, 1] = -0.906179845938664
+            weights[0] = 0.056134348862429
+            weights[1] = 0.113400000000000
+            weights[2] = 0.134785072387521
+            weights[3] = 0.113400000000000
+            weights[4] = 0.056134348862429
+            weights[5] = 0.113400000000000
+            weights[6] = 0.229085404223991
+            weights[7] = 0.272286532550750
+            weights[8] = 0.229085404223991
+            weights[9] = 0.113400000000000
+            weights[10] = 0.134785072387521
+            weights[11] = 0.272286532550750
+            weights[12] = 0.323634567901235
+            weights[13] = 0.272286532550750
+            weights[14] = 0.134785072387521
+            weights[15] = 0.113400000000000
+            weights[16] = 0.229085404223991
+            weights[17] = 0.272286532550750
+            weights[18] = 0.229085404223991
+            weights[19] = 0.113400000000000
+            weights[20] = 0.056134348862429
+            weights[21] = 0.113400000000000
+            weights[22] = 0.134785072387521
+            weights[23] = 0.113400000000000
+            weights[24] = 0.056134348862429
+        else:
+            print('四边形单元的积分点数量错误：{}'.format(num_integral_points))
+    else:
+        print('无该单元的数值积分：{}'.format(element))
+        return
     return gauss_points, weights
 
 
@@ -885,6 +1150,371 @@ def rod_ke(ke, e, a, length):
     ke[1, 0] = -1.0
     ke = ke * e * a / length
     return ke
+
+
+def shape_der(der, points, i):
+    """
+    生成第i个积分点的形函数的偏导
+    :param der: 形函数偏导
+    :param points: 局部坐标系下的高斯积分点
+    :param i: 局部坐标系下高斯积分点的编号
+    :return: der
+    """
+    num_node_on_elem = np.size(der, 1)
+    num_dim = np.size(der, 0)
+    if num_dim == 1:
+        xi = points(i, 0)  # ξ
+        if num_node_on_elem == 2:
+            der[0, 0] = -0.5
+            der[0, 1] = -0.5
+        elif num_node_on_elem == 3:
+            der[0, 0] = (2.0 * xi - 1.0) / 2.0
+            der[0, 1] = -2.0 * xi
+            der[0, 2] = (2.0 * xi + 1.0) / 2.0
+        else:
+            print('单元节点数错误')
+    elif num_dim == 2:
+        xi = points[i, 0]  # ξ
+        eta = points[i, 1]  # η
+        c1 = xi
+        c2 = eta
+        c3 = 1. - c1 - c2
+        eta_m = 0.25 * (1. - eta)
+        eta_p = 0.25 * (1. + eta)
+        xi_m = 0.25 * (1. - xi)
+        xi_p = 0.25 * (1. + xi)
+        if num_node_on_elem == 3:
+            der[0, 0] = 1.0
+            der[0, 1] = -1.0
+            der[0, 2] = 0.0
+            der[1, 0] = 0.0
+            der[1, 1] = -1.0
+            der[1, 2] = 1.0
+        elif num_node_on_elem == 6:
+            der[0, 0] = 4. * c1 - 1.
+            der[0, 5] = 4. * c2
+            der[0, 4] = 0.0
+            der[0, 3] = -4. * c2
+            der[0, 2] = -(4. * c3 - 1.)
+            der[0, 1] = 4. * (c3 - c1)
+            der[1, 0] = 0.0
+            der[1, 5] = 4. * c1
+            der[1, 4] = 4. * c2 - 1.
+            der[1, 3] = 4. * (c3 - c2)
+            der[1, 2] = -(4. * c3 - 1.)
+            der[1, 1] = -4. * c1
+        elif num_node_on_elem == 10:
+            der[0, 0] = (27. * c1 ** 2 - 18. * c1 + 2.) / 2.
+            der[0, 8] = (9. * (6. * c1 - 1.) * c2) / 2.
+            der[0, 7] = (9. * (3. * c2 - 1.) * c2) / 2.
+            der[0, 6] = 0.0
+            der[0, 5] = -(9. * (3. * c2 - 1.) * c2) / 2.
+            der[0, 4] = (9. * (6. * c1 + 6. * c2 - 5.) * c2) / 2.
+            der[0, 3] = -(27.*c1**2 + 54.*c1*c2-36.*c1+27.*c2**2-36.*c2+11.)/2.
+            der[0, 2] = (9.*(9.*c1**2+12.*c1*c2-10.*c1+3.*c2**2-5.*c2+2.))/2.
+            der[0, 1] = -(9. * (9. * c1 ** 2 + 6. * c1 * c2 - 8. * c1 - c2 + 1.)) / 2.
+            der[0, 9] = -27. * (((c2 - 1.) + c1) + c1) * c2
+            der[1, 0] = 0.0
+            der[1, 8] = (9. * (3. * c1 - 1.) * c1) / 2.
+            der[1, 7] = (9. * (6. * c2 - 1.) * c1) / 2.
+            der[1, 6] = (27. * c2 ** 2 - 18. * c2 + 2.) / 2.
+            der[1, 5] = -(9. * ((c1 + c2 - 1.) * (6. * c2 - 1.) + (3. * c2 - 1.) * c2)) / 2.
+            der[1, 4] = (9.*(3.*c1**2+12.*c1*c2-5.*c1+9.*c2**2-10.*c2+2.))/2.
+            der[1, 3] = -(27.*c1**2+54.*c1*c2-36.*c1+27.*c2**2-36.*c2+11.)/2.
+            der[1, 2] = (9. * (6. * c1 + 6. * c2 - 5.) * c1) / 2.
+            der[1, 1] = -(9. * (3. * c1 - 1.) * c1) / 2.
+            der[1, 9] = -27. * (((c2 - 1.) + c1) + c2) * c1
+        elif num_node_on_elem == 15:
+            t1 = c1 - 0.25
+            t2 = c1 - 0.5
+            t3 = c1 - 0.75
+            t4 = c2 - 0.25
+            t5 = c2 - 0.5
+            t6 = c2 - 0.75
+            t7 = c3 - 0.25
+            t8 = c3 - 0.5
+            t9 = c3 - 0.75
+            der[0, 0] = 32. / 3. * (t2 * t3 * (t1 + c1) + c1 * t1 * (t3 + t2))
+            der[0, 11] = 128. / 3. * c2 * (t2 * (t1 + c1) + c1 * t1)
+            der[0, 10] = 64. * c2 * t4 * (t1 + c1)
+            der[0, 9] = 128. / 3. * c2 * t4 * t5
+            der[0, 8] = 0.
+            der[0, 7] = -128. / 3. * c2 * t4 * t5
+            der[0, 6] = -64. * c2 * t4 * (t7 + c3)
+            der[0, 5] = -128. / 3. * c2 * (t8 * (t7 + c3) + c3 * t7)
+            der[0, 4] = -32. / 3. * (t8 * t9 * (t7 + c3) + c3 * t7 * (t8 + t9))
+            der[0, 3] = 128. / 3. * (c3 * t7 * t8 - c1 * (t8 * (t7 + c3) + c3 * t7))
+            der[0, 2] = 64. * (c3 * t7 * (t1 + c1) - c1 * t1 * (t7 + c3))
+            der[0, 1] = 128. / 3. * (c3 * (t2 * (t1 + c1) + c1 * t1) - c1 * t1 * t2)
+            der[0, 12] = 128. * c2 * (c3 * (t1 + c1) - c1 * t1)
+            der[0, 14] = 128. * c2 * t4 * (c3 - c1)
+            der[0, 13] = 128. * c2 * (c3 * t7 - c1 * (t7 + c3))
+            der[1, 0] = 0.
+            der[1, 11] = 128. / 3. * c1 * t1 * t2
+            der[1, 10] = 64. * c1 * t1 * (t4 + c2)
+            der[1, 9] = 128. / 3. * c1 * (t5 * (t4 + c2) + c2 * t4)
+            der[1, 8] = 32. / 3. * (t5 * t6 * (t4 + c2) + c2 * t4 * (t6 + t5))
+            der[1, 7] = 128. / 3. * ((c3 * (t5 * (t4 + c2) + c2 * t4)) - c2 * t4 * t5)
+            der[1, 6] = 64. * (c3 * t7 * (t4 + c2) - c2 * t4 * (t7 + c3))
+            der[1, 5] = 128. / 3. * (c3 * t7 * t8 - c2 * (t8 * (t7 + c3) + c3 * t7))
+            der[1, 4] = -32. / 3. * (t8 * t9 * (t7 + c3) + c3 * t7 * (t8 + t9))
+            der[1, 3] = -128. / 3. * c1 * (t8 * (t7 + c3) + c3 * t7)
+            der[1, 2] = -64. * c1 * t1 * (t7 + c3)
+            der[1, 1] = -128. / 3. * c1 * t1 * t2
+            der[1, 12] = 128. * c1 * t1 * (c3 - c2)
+            der[1, 14] = 128. * c1 * (c3 * (t4 + c2) - c2 * t4)
+            der[1, 13] = 128. * c1 * (c3 * t7 - c2 * (c3 + t7))
+        elif num_node_on_elem == 4:
+            der[0, 0] = -eta_m
+            der[0, 1] = -eta_p
+            der[0, 2] = eta_p
+            der[0, 3] = eta_m
+            der[1, 0] = -xi_m
+            der[1, 1] = xi_m
+            der[1, 2] = xi_p
+            der[1, 3] = -xi_p
+        elif num_node_on_elem == 8:
+            der[0, 0] = eta_m * (2. * xi + eta)
+            der[0, 1] = -8. * eta_m * eta_p
+            der[0, 2] = eta_p * (2. * xi - eta)
+            der[0, 3] = -4. * eta_p * xi
+            der[0, 4] = eta_p * (2. * xi + eta)
+            der[0, 5] = 8. * eta_p * eta_m
+            der[0, 6] = eta_m * (2. * xi - eta)
+            der[0, 7] = -4. * eta_m * xi
+            der[1, 0] = xi_m * (xi + 2. * eta)
+            der[1, 1] = -4. * xi_m * eta
+            der[1, 2] = xi_m * (2. * eta - xi)
+            der[1, 3] = 8. * xi_m * xi_p
+            der[1, 4] = xi_p * (xi + 2. * eta)
+            der[1, 5] = -4. * xi_p * eta
+            der[1, 6] = xi_p * (2. * eta - xi)
+            der[1, 7] = -8. * xi_m * xi_p
+        else:
+            print('单元节点数错误')
+    elif num_dim == 3:
+        xi = points[i, 0]
+        eta = points[i, 1]
+        zeta = points[i, 2]
+        eta_m = 1. - eta
+        xi_m = 1. - xi
+        zeta_m = 1. - zeta
+        eta_p = eta + 1.
+        xi_p = xi + 1.
+        zeta_p = zeta + 1.
+        if num_node_on_elem == 4:
+            der[0, 0] = 1.
+            der[0, 1] = 0.
+            der[0, 2] = 0.
+            der[0, 3] = -1.
+            der[1, 0] = 0.
+            der[1, 1] = 1.
+            der[1, 2] = 0.
+            der[1, 3] = -1.
+            der[2, 0] = 0.
+            der[2, 1] = 0.
+            der[2, 2] = 1.
+            der[2, 3] = -1.
+        elif num_node_on_elem == 8:
+            der[0, 0] = -0.125 * eta_m * zeta_m
+            der[0, 1] = -0.125 * eta_m * zeta_p
+            der[0, 2] = 0.125 * eta_m * zeta_p
+            der[0, 3] = 0.125 * eta_m * zeta_m
+            der[0, 4] = -0.125 * eta_p * zeta_m
+            der[0, 5] = -0.125 * eta_p * zeta_p
+            der[0, 6] = 0.125 * eta_p * zeta_p
+            der[0, 7] = 0.125 * eta_p * zeta_m
+            der[1, 0] = -0.125 * xi_m * zeta_m
+            der[1, 1] = -0.125 * xi_m * zeta_p
+            der[1, 2] = -0.125 * xi_p * zeta_p
+            der[1, 3] = -0.125 * xi_p * zeta_m
+            der[1, 4] = 0.125 * xi_m * zeta_m
+            der[1, 5] = 0.125 * xi_m * zeta_p
+            der[1, 6] = 0.125 * xi_p * zeta_p
+            der[1, 7] = 0.125 * xi_p * zeta_m
+            der[2, 0] = -0.125 * xi_m * eta_m
+            der[2, 1] = 0.125 * xi_m * eta_m
+            der[2, 2] = 0.125 * xi_p * eta_m
+            der[2, 3] = -0.125 * xi_p * eta_m
+            der[2, 4] = -0.125 * xi_m * eta_p
+            der[2, 5] = 0.125 * xi_m * eta_p
+            der[2, 6] = 0.125 * xi_p * eta_p
+            der[2, 7] = -0.125 * xi_p * eta_p
+        elif num_node_on_elem == 20:
+            xi_i = [-1, -1, -1, 0, 1, 1, 1, 0, -1, -1, 1, 1, -1, -1, -1, 0, 1, 1, 1, 0]
+            eta_i = [-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+            zeta_i = [-1, 0, 1, 1, 1, 0, -1, -1, -1, 1, 1, -1, -1, 0, 1, 1, 1, 0, -1, -1]
+            for n in range(20):
+                xi0 = xi * xi_i[n]
+                eta0 = eta * eta_i[n]
+                zeta0 = zeta * zeta_i[n]
+                if n == 3 or n == 7 or n == 15 or n == 19:
+                    der[0, n] = -0.5 * xi * (1. + eta0) * (1. + zeta0)
+                    der[1, n] = 0.25 * eta_i[n] * (1. - xi * xi) * (1. + zeta0)
+                    der[2, n] = 0.25 * zeta_i[n] * (1. - xi * xi) * (1. + eta0)
+                elif 8 <= n <= 11:
+                    der[0, n] = 0.25 * xi_i[n] * (1. - eta * eta) * (1. + zeta0)
+                    der[1, n] = -0.5 * eta * (1. + xi0) * (1. + zeta0)
+                    der[2, n] = 0.25 * zeta_i[n] * (1. + xi0) * (1. - eta * eta)
+                elif n == 1 or n == 5 or n == 13 or n == 17:
+                    der[0, n] = 0.25 * xi_i[n] * (1. + eta0) * (1. - zeta * zeta)
+                    der[1, n] = 0.25 * eta_i[n] * (1. + xi0) * (1. - zeta * zeta)
+                    der[2, n] = -0.5 * zeta * (1. + xi0) * (1. + eta0)
+                else:
+                    der[0, n] = 0.125*xi_i[n]*(1.+eta0)*(1.+zeta0)*(2.*xi0+eta0+zeta0-1.)
+                    der[1, n] = 0.125*eta_i[n]*(1.+xi0)*(1.+zeta0)*(xi0+2.*eta0+zeta0-1.)
+                    der[2, n] = 0.125*zeta_i[n]*(1.+xi0)*(1.+eta0)*(xi0+eta0+2.*zeta0-1.)
+        else:
+            print('单元节点数错误')
+    else:
+        print("问题维度错误")
+    return der
+
+
+def shape_fun(fun, points, i):
+    """
+    生成第i个积分点的形函数
+    参见《有限元方法编程（第五版）》附录B
+    :param fun: 形函数N
+    :param points: 局部坐标系下的高斯积分点
+    :param i: 局部坐标系下高斯积分点的编号
+    :return: fun
+    """
+    num_dim = np.size(points, 1)
+    num_node_on_elem = np.size(fun, 0)
+    if num_dim == 1:  # 一维杆单元
+        xi = points(i, 0)  # ξ
+        if num_node_on_elem == 2:  # 2节点
+            fun[0] = (1.0 - xi) / 2.0
+            fun[1] = (1.0 + xi) / 2.0
+        elif num_node_on_elem == 3:  # 3节点
+            fun[0] = xi * (xi - 1.0) / 2.0
+            fun[1] = (1.0 + xi) * (1.0 - xi)
+            fun[2] = xi * (xi + 1.0) / 2.0
+        else:
+            print('单元的节点数错误')
+            return
+    elif num_dim == 2:  # 二维问题
+        c1 = points[i, 0]  # L1，用于三角形单元
+        c2 = points[i, 1]  # L2
+        c3 = 1.0 - c1 - c2  # L3
+        xi = points[i, 0]  # ξ，用于四边形单元
+        eta = points[i, 1]  # η
+        eta_m = 0.25 * (1. - eta)
+        eta_p = 0.25 * (1. + eta)
+        xi_m = 0.25 * (1. - xi)
+        xi_p = 0.25 * (1. + xi)
+        if num_node_on_elem == 3:
+            fun[0] = c1
+            fun[1] = c3
+            fun[2] = c2
+        elif num_node_on_elem == 6:
+            fun[0] = (2.0 * c1 - 1.0) * c1
+            fun[1] = 4.0 * c3 * c1
+            fun[2] = (2.0 * c3 - 1.0) * c3
+            fun[3] = 4.0 * c2 * c3
+            fun[4] = (2.0 * c2 - 1.0) * c2
+            fun[5] = 4.0 * c1 * c2
+        elif num_node_on_elem == 10:
+            fun[0] = ((3. * c1 - 1.) * (3. * c1 - 2.) * c1) / 2.
+            fun[1] = -(9. * (3. * c1 - 1.) * (c1 + c2 - 1.) * c1) / 2.
+            fun[2] = (9. * (3. * c1 + 3. * c2 - 2.) * (c1 + c2 - 1.) * c1) / 2.
+            fun[3] = -((3. * c1 + 3. * c2 - 1.) * (3. * c1 + 3. * c2 - 2.) * (c1 + c2 - 1.)) / 2.
+            fun[4] = (9. * (3. * c1 + 3. * c2 - 2.) * (c1 + c2 - 1.) * c2) / 2.
+            fun[5] = -(9. * (c1 + c2 - 1.) * (3. * c2 - 1.) * c2) / 2.
+            fun[6] = ((3. * c2 - 1.) * (3. * c2 - 2.) * c2) / 2.
+            fun[7] = (9. * (3. * c2 - 1.) * c1 * c2) / 2.
+            fun[8] = (9. * (3. * c1 - 1.) * c1 * c2) / 2.
+            fun[9] = -27. * ((c2 - 1.) + c1) * c1 * c2
+        elif num_node_on_elem == 15:
+            t1 = c1 - 0.25
+            t2 = c1 - 0.5
+            t3 = c1 - 0.75
+            t4 = c2 - 0.25
+            t5 = c2 - 0.5
+            t6 = c2 - 0.75
+            t7 = c3 - 0.25
+            t8 = c3 - 0.5
+            t9 = c3 - 0.75
+            fun[0] = 32. / 3. * c1 * t1 * t2 * t3
+            fun[1] = 128. / 3. * c3 * c1 * t1 * t2
+            fun[2] = 64. * c3 * c1 * t1 * t7
+            fun[3] = 128. / 3. * c3 * c1 * t7 * t8
+            fun[4] = 32. / 3. * c3 * t7 * t8 * t9
+            fun[5] = 128. / 3. * c2 * c3 * t7 * t8
+            fun[6] = 64. * c2 * c3 * t4 * t7
+            fun[7] = 128. / 3. * c2 * c3 * t4 * t5
+            fun[8] = 32. / 3. * c2 * t4 * t5 * t6
+            fun[9] = 128. / 3. * c1 * c2 * t4 * t5
+            fun[10] = 64. * c1 * c2 * t1 * t4
+            fun[11] = 128. / 3. * c1 * c2 * t1 * t2
+            fun[12] = 128. * c1 * c2 * t1 * c3
+            fun[14] = 128. * c1 * c2 * c3 * t4
+            fun[13] = 128. * c1 * c2 * c3 * t7
+        elif num_node_on_elem == 4:
+            fun[0] = 4. * xi_m * eta_m
+            fun[1] = 4. * xi_m * eta_p
+            fun[2] = 4. * xi_p * eta_p
+            fun[3] = 4. * xi_p * eta_m
+        elif num_node_on_elem == 8:
+            fun[0] = 4. * eta_m * xi_m * (-xi - eta-1.)
+            fun[1] = 32. * eta_m * xi_m * eta_p
+            fun[2] = 4. * eta_p * xi_m * (-xi + eta - 1.)
+            fun[3] = 32. * xi_m * xi_p * eta_p
+            fun[4] = 4. * eta_p * xi_p * (xi + eta - 1.)
+            fun[5] = 32. * eta_p * xi_p * eta_m
+            fun[6] = 4. * xi_p * eta_m * (xi - eta - 1.)
+            fun[7] = 32. * xi_m * xi_p * eta_m
+        else:
+            print('单元的节点数错误')
+            return
+    elif num_dim == 3:
+        xi = points[i, 0]  # ξ
+        eta = points(i, 2)  # η
+        zeta = points(i, 3)  # ζ
+        eta_m = 1. - eta
+        xi_m = 1. - xi
+        zeta_m = 1. - zeta
+        eta_p = eta + 1.
+        xi_p = xi + 1.
+        zeta_p = zeta + 1.
+        if num_node_on_elem == 4:
+            fun[0] = xi
+            fun[1] = eta
+            fun[2] = zeta
+            fun[3] = 1. - xi - eta - zeta
+        elif num_node_on_elem == 8:
+            fun[0] = 0.125 * xi_m * eta_m * zeta_m
+            fun[1] = 0.125 * xi_m * eta_m * zeta_p
+            fun[2] = 0.125 * xi_p * eta_m * zeta_p
+            fun[3] = 0.125 * xi_p * eta_m * zeta_m
+            fun[4] = 0.125 * xi_m * eta_p * zeta_m
+            fun[5] = 0.125 * xi_m * eta_p * zeta_p
+            fun[6] = 0.125 * xi_p * eta_p * zeta_p
+            fun[7] = 0.125 * xi_p * eta_p * zeta_m
+        elif num_node_on_elem == 20:
+            xi_i = [-1, -1, -1, 0, 1, 1, 1, 0, -1, -1, 1, 1, -1, -1, -1, 0, 1, 1, 1, 0]
+            eta_i = [-1, -1, -1, -1, -1, -1, -1, -1, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1, 1]
+            zeta_i = [-1, 0, 1, 1, 1, 0, -1, -1, -1, 1, 1, -1, -1, 0, 1, 1, 1, 0, -1, -1]
+            for n in range(20):
+                xi0 = xi * xi_i[n]
+                eta0 = eta * eta_i[n]
+                zeta0 = zeta * zeta_i[n]
+                if n == 3 or n == 7 or n == 15 or n == 19:
+                    fun[n] = 0.25 * (1. - xi * xi) * (1. + eta0) * (1. + zeta0)
+                elif 8 <= n <= 11:
+                    fun[n] = 0.25 * (1. + xi0) * (1. - eta * eta) * (1. + zeta0)
+                elif n == 1 or n == 5 or n == 13 or n == 17:
+                    fun[n] = 0.25 * (1. + xi0) * (1. + eta0) * (1. - zeta * zeta)
+                else:
+                    fun[n] = 0.125*(1.+xi0)*(1.+eta0)*(1.+zeta0)*(xi0+eta0+zeta0-2)
+        else:
+            print('单元的节点数错误')
+            return
+    else:
+        print('问题维度错误')
+        return
+    return fun
 
 
 def transformation_matrix(coord, gamma):

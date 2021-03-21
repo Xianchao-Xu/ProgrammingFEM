@@ -36,6 +36,7 @@ def plate(filename=None, plot=False, field_name='Displacement', component=-1,
     elem_ids = None
     elem_connections = None
     elem_prop_type = None
+    direction = None
     num_integral_points = None
     x_coord = None
     y_coord = None
@@ -63,7 +64,7 @@ def plate(filename=None, plot=False, field_name='Displacement', component=-1,
             num_prop_types, num_prop_comps, prop_ids, prop = read_parameter(fr, 'float')
         elif line == '* mesh':  # mesh关键词出现，则不需要node、element关键词
             # 单元类型，积分点数，几个方向的坐标
-            elem_type, num_integral_points, x_coord, y_coord, z_coord = read_mesh(fr)
+            elem_type, direction, num_integral_points, x_coord, y_coord, z_coord = read_mesh(fr)
             num_x_elem = len(x_coord) - 1
             num_y_elem = len(x_coord) - 1
             num_z_elem = len(x_coord) - 1 if z_coord else None
@@ -110,10 +111,10 @@ def plate(filename=None, plot=False, field_name='Displacement', component=-1,
     k_diag = np.zeros(num_equation, dtype=np.int)  # 对角元素定位向量
     global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)  # 全局单元自由度矩阵
     if elem_connections is None:
-        elem_connections = np.zeros((num_node_on_elem, num_elem), dtype=np.int)
+        elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=np.int)
         node_coord = np.zeros((num_node, n_dim), dtype=np.float)  # 节点坐标矩阵
         for i_elem in range(num_elem):
-            elem_conn, elem_coord = plate_conn(elem_type, i_elem, x_coord, y_coord, 'x')
+            elem_conn, elem_coord = plate_conn(elem_type, i_elem, x_coord, y_coord, direction)
             elem_connections[i_elem, :] = elem_conn
             node_coord[elem_conn-1, :] = elem_coord
             elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)

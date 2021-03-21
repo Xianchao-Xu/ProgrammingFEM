@@ -59,9 +59,17 @@ def read_element(fr):
     """
     line = fr.readline().strip().split()
     elem_type = line[0]
-    num_node_on_elem = 4
-    if elem_type == 'quad4':
+    if elem_type == 'tria3':
+        num_node_on_elem = 3
+    elif elem_type == 'tria15':
+        num_node_on_elem = 15
+    elif elem_type == 'quad4':
         num_node_on_elem = 4
+    elif elem_type == 'quad8':
+        num_node_on_elem = 8
+    else:
+        print('错误的单元类型：{}'.format(elem_type))
+        return
     num_elem = int(line[1])
     num_integral_points = int(line[2])
     elem_ids = list()
@@ -110,13 +118,14 @@ def read_mesh(fr):
     :return: 单元类型elem_type，积分点数，几个方向的坐标
     """
     elem_type = fr.readline().strip().lower()
+    direction = fr.readline().strip().lower()
     num_integral_points = int(fr.readline())
     x_coord = np.array(fr.readline().split(), dtype=np.float)
     y_coord = np.array(fr.readline().split(), dtype=np.float)
     z_coord = None
-    if 'hexa' in elem_type:
+    if elem_type[:4] in ['hexa']:
         z_coord = np.array(fr.readline().split(), dtype=np.float)
-    return elem_type, num_integral_points, x_coord, y_coord, z_coord
+    return elem_type, direction, num_integral_points, x_coord, y_coord, z_coord
 
 
 def read_parameter_1d(fr, para_type='float'):
