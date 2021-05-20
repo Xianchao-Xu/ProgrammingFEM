@@ -73,7 +73,7 @@ def read_element(fr):
     num_elem = int(line[1])
     num_integral_points = int(line[2])
     elem_ids = list()
-    elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=np.int)
+    elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=int)
     for i in range(num_elem):
         line = fr.readline().strip().split()
         elem_ids.append(int(line[0]))
@@ -92,7 +92,7 @@ def read_elem_prop_type(num_elem, num_prop_types, prop_ids, fr):
     :param fr: 输入文件的句柄
     :return: elem_prop_types，每个单元的材料属性号
     """
-    elem_prop_type = np.ones(num_elem, dtype=np.int)
+    elem_prop_type = np.ones(num_elem, dtype=int)
     if num_prop_types == 1:
         elem_prop_type *= prop_ids[0]
     else:
@@ -139,7 +139,7 @@ def read_parameter_1d(fr, para_type='float'):
     if para_type == 'float':
         values = np.zeros((row, 1), dtype=np.float)
     elif para_type == 'int':
-        values = np.zeros((row, 1), dtype=np.int)
+        values = np.zeros((row, 1), dtype=int)
     else:
         print('不能识别的参数类型：{}'.format(para_type))
         return
@@ -161,7 +161,7 @@ def read_parameter(fr, para_type='float'):
     if para_type == 'float':
         values = np.zeros((row, column), dtype=np.float)
     elif para_type == 'int':
-        values = np.zeros((row, column), dtype=np.int)
+        values = np.zeros((row, column), dtype=int)
     else:
         print('不能识别的参数类型：{}'.format(para_type))
         return

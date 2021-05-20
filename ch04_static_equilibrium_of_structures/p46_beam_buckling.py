@@ -71,10 +71,10 @@ def beam_buckling(filename=None, plot=False, field_name='Displacement', componen
     # ********************************** 获取存储带宽 ********************************** #
     num_equation = node_dof.max()  # 自由度数，亦即方程总数
     num_elem_dof = num_node_dof * num_node_on_elem
-    k_diag = np.zeros(num_equation, dtype=np.int)  # 对角元素定位向量
-    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)
+    k_diag = np.zeros(num_equation, dtype=int)  # 对角元素定位向量
+    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=int)
     for i_elem in range(num_elem):
-        elem_conn = np.array([i_elem+1, i_elem + 2], dtype=np.int)
+        elem_conn = np.array([i_elem+1, i_elem + 2], dtype=int)
         elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)
         global_elem_dof[i_elem, :] = elem_dof
         k_diag = form_k_diag(k_diag, elem_dof)

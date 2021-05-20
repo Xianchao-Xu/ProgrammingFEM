@@ -109,8 +109,8 @@ def plane(filename=None, plot=False, field_name='Displacement', component=-1,
 
     # ********************************** 获取存储带宽 ********************************** #
     num_equation = np.max(node_dof)  # 方程数
-    k_diag = np.zeros(num_equation, dtype=np.int)  # 对角元素辅助向量
-    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)  # 全局单元自由度矩阵
+    k_diag = np.zeros(num_equation, dtype=int)  # 对角元素辅助向量
+    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=int)  # 全局单元自由度矩阵
     for i_elem in range(num_elem):
         elem_conn = elem_connections[i_elem, :]
         elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)

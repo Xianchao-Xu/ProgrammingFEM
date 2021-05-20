@@ -45,7 +45,7 @@ def add_displacement(num_disp_node, num_node_dof, disp_node_ids, displacements,
     :return: 乘以大数后的刚度矩阵（向量）和载荷
     """
     if num_disp_node != 0:
-        disp_dof = np.zeros((num_disp_node, num_node_dof), dtype=np.int)
+        disp_dof = np.zeros((num_disp_node, num_node_dof), dtype=int)
         for i in range(num_disp_node):
             disp_dof[i, :] = node_dof[node_ids.index(disp_node_ids[i]), :]
             for j in range(num_node_dof):
@@ -253,10 +253,15 @@ def form_k_diag(k_diag, elem_dof):
     令k=elem_dof[i]，则k为系统的第k个自由度，也就是矩阵的第k行，
     而elem_dof中的其它自由度，则是矩阵中同一行的其它元素。
     一行中最大自由度编号减最小自由度编号再加一，即为该行需要存储的元素个数。
+
+    因为矩阵是对称矩阵，所以第k行最多存储k个元素。
+    对单元内的自由度进行遍历时，只需处理自由度编号小于自身自由度编号的情况。
+
+    对不同的单元进行遍历时，k_diag数组会不停更新，直到获得正确的结果
     """
     i_dof = np.size(elem_dof)
 
-    # 遍历单元，自由度相减并加一。
+    # 遍历单元自由度，自由度相减并加一。
     for i in range(i_dof):
         iwp1 = 1
         if elem_dof[i] != 0:
@@ -839,7 +844,7 @@ def initialize_node_dof(node_ids, num_node_dof, fixed_node_ids, fixed_components
     :return: 节点自由度矩阵
     """
     num_node = len(node_ids)
-    node_dof = np.ones((num_node, num_node_dof), dtype=np.int)
+    node_dof = np.ones((num_node, num_node_dof), dtype=int)
     num_fixed_node = len(fixed_node_ids)
     for i in range(num_fixed_node):
         node_id = fixed_node_ids[i]

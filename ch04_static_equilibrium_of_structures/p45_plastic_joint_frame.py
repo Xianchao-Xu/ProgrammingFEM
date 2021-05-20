@@ -122,8 +122,8 @@ def nonlinear_frame(filename=None, plot=False, field_name='Displacement', compon
     # ********************************** 获取存储带宽 ********************************** #
     num_elem_dof = num_node_dof * num_node_on_elem
     num_equation = node_dof.max()
-    k_diag = np.zeros(num_equation, dtype=np.int)  # 对角元素定位向量
-    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)
+    k_diag = np.zeros(num_equation, dtype=int)  # 对角元素定位向量
+    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=int)
     for i_elem in range(num_elem):
         elem_conn = elem_connections[i_elem, :]
         elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)

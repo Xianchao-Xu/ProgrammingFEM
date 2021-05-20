@@ -80,11 +80,11 @@ def bar1d(filename=None, plot=True, field_name='Displacement', component=-1,
 
     # ********************************** 获取存储带宽 ********************************** #
     num_equation = np.max(node_dof)  # 自由度总数，也是方程的总数
-    k_diag = np.zeros(num_equation, dtype=np.int)  # 用于存储矩阵对角线元素在向量中的位置
+    k_diag = np.zeros(num_equation, dtype=int)  # 用于存储矩阵对角线元素在向量中的位置
     # 单元定位向量，存储单元中的自由度是整体的第几号自由度:
-    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)
+    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=int)
     for i_elem in range(num_elem):
-        elem_conn = np.array([i_elem+1, i_elem + 2], dtype=np.int)  # 单元节点编号，从1开始
+        elem_conn = np.array([i_elem+1, i_elem + 2], dtype=int)  # 单元节点编号，从1开始
         elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)
         global_elem_dof[i_elem, :] = elem_dof
         k_diag = form_k_diag(k_diag, elem_dof)

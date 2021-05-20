@@ -21,7 +21,7 @@ def gen_plate(element, num_node, num_elem, num_node_on_elem, x_coord, y_coord, d
     :param direction: 节点编号方向
     :return: 节点坐标node_coord, 单元连接关系elem_connections
     """
-    elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=np.int)
+    elem_connections = np.zeros((num_elem, num_node_on_elem), dtype=int)
     node_coord = np.zeros((num_node, 2), dtype=np.float)
     for i_elem in range(num_elem):
         elem_conn, elem_coord = plate_conn(element, i_elem, x_coord, y_coord, direction)
@@ -99,7 +99,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
             iq = i_elem + 1 - num_y_elem * j_elem
         if element == 'tria3':
             num_node_on_elem = 3
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if np.mod(iq, 2) != 0:
                 if direction == 'x' or direction == 'r':
@@ -133,7 +133,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
                 elem_coord[2, 1] = y_coord[iq // 2 - 1]
         elif element == 'tria6':
             num_node_on_elem = 6
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if np.mod(iq, 2) != 0:
                 if direction == 'x' or direction == 'r':
@@ -182,7 +182,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
             elem_coord[5, :] = 0.5 * (elem_coord[4, :] + elem_coord[0, :])
         elif element == 'tria10':
             num_node_on_elem = 10
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if np.mod(iq, 2) != 0:
                 if direction == 'x' or direction == 'r':
@@ -260,7 +260,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
             elem_coord[9, 1] = elem_coord[4, 1]
         elif element == 'tria15':
             num_node_on_elem = 15
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if np.mod(iq, 2) != 0:
                 if direction == 'x' or direction == 'r':
@@ -369,7 +369,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
             iq = i_elem + 1 - (ip - 1) * num_y_elem
         if element == 'quad4':
             num_node_on_elem = 4
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if direction == 'x' or direction == 'r':
                 elem_conn[0] = iq * (num_x_elem + 1) + ip
@@ -391,7 +391,7 @@ def plate_conn(element, i_elem, x_coord, y_coord, direction):
             elem_coord[3, 1] = y_coord[iq]
         elif element == 'quad8':
             num_node_on_elem = 8
-            elem_conn = np.zeros(num_node_on_elem, dtype=np.int)
+            elem_conn = np.zeros(num_node_on_elem, dtype=int)
             elem_coord = np.zeros((num_node_on_elem, n_dim), dtype=np.float)
             if direction == 'x' or direction == 'r':
                 elem_conn[0] = iq * (3 * num_x_elem + 2) + 2 * ip - 1

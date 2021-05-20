@@ -87,9 +87,9 @@ def bar(filename=None, plot=True, field_name='Displacement', component=-1,
 
     # ********************************** 获取存储带宽 ********************************** #
     num_equation = np.max(node_dof)  # 方程个数，也是最大自由度编号
-    k_diag = np.zeros(num_equation, dtype=np.int)  # 对角线元素定位向量
+    k_diag = np.zeros(num_equation, dtype=int)  # 对角线元素定位向量
     # 单元定位向量，用于获取单元中各节点自由度是整体的第几号自由度
-    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=np.int)
+    global_elem_dof = np.zeros((num_elem, num_elem_dof), dtype=int)
     for i_elem in range(num_elem):
         elem_conn = elem_connections[i_elem, :]
         elem_dof = get_elem_dof(elem_conn, node_ids, node_dof, num_elem_dof)
